@@ -1,0 +1,238 @@
+.auth-shell{
+  height:100vh; height:100dvh; display:grid; grid-template-columns:1.05fr 1fr;
+  background:var(--bg); overflow:hidden;
+}
+@media (max-width:960px){ .auth-shell{ grid-template-columns:1fr; height:auto; min-height:100vh; overflow:visible; } }
+
+/* ---- Left panel ---- */
+.auth-side{
+  position:relative; overflow-y:auto; padding:clamp(24px,4vh,40px) clamp(28px,4vw,48px);
+  background:
+    radial-gradient(600px 400px at 15% 10%, var(--accent-soft), transparent 60%),
+    radial-gradient(500px 380px at 90% 85%, rgba(255,180,84,.10), transparent 55%),
+    linear-gradient(160deg, var(--bg-2), var(--bg));
+  display:flex; flex-direction:column; justify-content:space-between; gap:16px;
+  border-right:1px solid var(--border);
+}
+@media (max-width:960px){ .auth-side{ display:none; } }
+
+.auth-brand{ display:flex; align-items:center; gap:12px; }
+.auth-brand-mark{
+  width:44px; height:44px; border-radius:12px; flex:none; overflow:hidden; padding:4px;
+  background:var(--panel-2); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 0 6px var(--accent-soft);
+}
+.auth-brand-mark img{ width:100%; height:100%; object-fit:contain; display:block; }
+.auth-brand-name{ font-size:20px; font-weight:700; }
+.auth-brand-name span{ color:var(--accent); }
+
+.auth-illustration{ margin:12px 0 16px; position:relative; }
+.auth-illustration svg{ height:clamp(110px,16vh,170px); width:100%; display:block; }
+
+.auth-tagline{ font-size:var(--fs-2xl); font-weight:700; line-height:1.15; max-width:11ch; margin-bottom:10px; }
+.auth-tagline em{ font-style:normal; color:var(--accent); }
+.auth-subtagline{ color:var(--text-2); font-size:14.5px; max-width:38ch; margin-bottom:18px; }
+
+/* Two columns keep the checklist from dominating the panel's height on
+   shorter laptop screens (this is the panel most likely to overflow). */
+.feature-list{
+  list-style:none; margin:0; padding:0;
+  display:grid; grid-template-columns:1fr 1fr; gap:8px 14px;
+}
+.feature-list li{ display:flex; align-items:center; gap:9px; font-size:13px; color:var(--text-2); }
+.feature-list .check{
+  width:18px; height:18px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+  display:flex; align-items:center; justify-content:center; flex:none;
+}
+
+.auth-side-footer{ display:flex; justify-content:space-between; align-items:center; color:var(--text-3); font-size:11.5px; flex-wrap:wrap; gap:8px; }
+.auth-side-footer .credit{ color:var(--text-3); }
+.auth-side-footer .credit strong{ color:var(--text-2); font-weight:600; }
+
+/* ---- Right panel ---- */
+.auth-form-side{
+  display:flex; align-items:center; justify-content:center; padding:28px 24px;
+  position:relative; overflow-y:auto; height:100%;
+}
+.auth-card-wrap{ width:100%; max-width:400px; margin:auto; }
+
+.auth-card{
+  position:relative;
+  background:color-mix(in srgb, var(--panel) 88%, transparent);
+  border:1px solid var(--border);
+  border-radius:var(--r-xl);
+  padding:34px 32px;
+  backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.02) inset;
+  overflow:hidden;
+}
+.auth-card::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--accent), var(--accent-strong), var(--accent));
+}
+.auth-card-mobile-brand{ display:none; }
+@media (max-width:960px){
+  .auth-card-mobile-brand{
+    display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:22px;
+  }
+}
+
+.auth-heading{ font-size:24px; font-weight:700; margin-bottom:6px; text-align:left; }
+.auth-subheading{ color:var(--text-2); font-size:13.5px; margin-bottom:26px; }
+
+/* ---- Leading-icon inputs (email / password / 2FA) ---- */
+.control-icon-wrap{ position:relative; }
+.control-icon-wrap .control{ padding-left:40px; }
+.control-icon{
+  position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-3);
+  pointer-events:none; transition:color var(--dur-f);
+}
+.control-icon-wrap:focus-within .control-icon,
+.password-input-wrap:focus-within .control-icon{ color:var(--accent); }
+.auth-card .control:focus{ box-shadow:0 0 0 3px var(--accent-soft), 0 0 16px -4px var(--accent); }
+
+/* ---- Polished primary button (auth forms only) ---- */
+.auth-card .btn-primary{
+  box-shadow:0 6px 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition:transform var(--dur-f), filter var(--dur-f), box-shadow var(--dur-f), background var(--dur-f);
+}
+.auth-card .btn-primary:hover:not(:disabled){
+  filter:brightness(1.08); transform:translateY(-1px);
+  box-shadow:0 10px 26px -6px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+/* ---- Custom checkbox (Remember me) ---- */
+.checkbox-visual{ position:relative; display:inline-flex; width:18px; height:18px; flex:none; }
+.checkbox-visual input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
+.checkbox-box{
+  position:absolute; inset:0; border-radius:5px; border:1.5px solid var(--border-strong);
+  background:var(--panel-2); display:flex; align-items:center; justify-content:center; color:transparent;
+  transition:background var(--dur-f), border-color var(--dur-f), color var(--dur-f);
+}
+.checkbox-visual input:checked + .checkbox-box{
+  background:linear-gradient(135deg, var(--accent), var(--accent-strong)); border-color:var(--accent-strong); color:var(--accent-ink);
+}
+.checkbox-visual input:focus-visible + .checkbox-box{ outline:2px solid var(--accent); outline-offset:2px; }
+
+.admin-toggle-row{ margin-bottom:18px; }
+.admin-toggle-link{
+  background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600;
+  cursor:pointer; padding:0; display:inline-flex; align-items:center; gap:6px;
+}
+.admin-toggle-link:hover{ text-decoration:underline; }
+
+.form-row-between{ display:flex; align-items:center; justify-content:space-between; margin:-6px 0 18px; }
+
+.password-input-wrap{ position:relative; }
+.password-input-wrap .control{ padding-left:40px; padding-right:42px; }
+.password-input-wrap .control-icon{ position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-3); pointer-events:none; transition:color var(--dur-f); }
+.password-toggle-btn{
+  position:absolute; right:8px; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:var(--text-3); cursor:pointer; padding:6px;
+  display:flex; align-items:center;
+}
+.password-toggle-btn:hover{ color:var(--text); }
+
+.strength-meter{ margin-top:8px; }
+.strength-track{ display:flex; gap:4px; }
+.strength-seg{ height:4px; flex:1; border-radius:3px; background:var(--border); transition:background var(--dur-b); }
+.strength-label{ font-size:11px; margin-top:5px; color:var(--text-3); }
+
+.remember-row{ display:flex; align-items:center; gap:9px; cursor:pointer; font-size:13px; color:var(--text-2); }
+
+.divider-row{ display:flex; align-items:center; gap:12px; margin:24px 0; color:var(--text-3); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; }
+.divider-row::before, .divider-row::after{ content:""; flex:1; height:1px; background:var(--border); }
+
+.social-row{ display:flex; flex-direction:column; gap:10px; }
+.social-btn{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+  padding:10px 16px; border-radius:var(--r-sm); font-size:13px; font-weight:600; cursor:not-allowed;
+  opacity:.7; position:relative;
+}
+.social-btn .soon-badge{
+  position:absolute; right:10px; font-size:9.5px; background:var(--accent-soft); color:var(--accent);
+  padding:2px 7px; border-radius:var(--r-pill); font-weight:700; letter-spacing:.03em;
+}
+
+.auth-switch-row{ text-align:center; margin-top:22px; font-size:13px; color:var(--text-2); }
+
+.otp-hint{
+  display:flex; gap:8px; align-items:flex-start; background:var(--amber-soft); color:var(--amber);
+  border-radius:var(--r-sm); padding:10px 12px; font-size:12px; margin-bottom:16px;
+}
+
+.auth-theme-toggle{
+  position:absolute; top:20px; right:20px;
+  width:36px; height:36px; border-radius:50%; background:var(--panel-2); border:1px solid var(--border);
+  color:var(--text-2); display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.auth-theme-toggle:hover{ color:var(--accent); border-color:var(--accent); }
+
+@media (max-height:720px){
+  .auth-illustration{ margin:4px 0 10px; }
+  .auth-illustration svg{ height:clamp(70px,12vh,110px); }
+  .auth-tagline{ font-size:24px; margin-bottom:6px; }
+  .auth-subtagline{ margin-bottom:12px; font-size:13px; }
+  .feature-list{ gap:6px 12px; }
+  .feature-list li{ font-size:12px; }
+}
+
+@media (max-height:560px){
+  .auth-illustration svg{ height:56px; }
+}
+
+/* ---- Sign-in modal (AuthModal.tsx) ----
+   Presents the same AuthCard used on the full-page auth screen as an
+   on-demand overlay from the landing page or anywhere else in the app. */
+.auth-modal-backdrop{
+  position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+  background:rgba(6,10,9,.6); backdrop-filter:blur(4px); padding:24px; overflow-y:auto;
+}
+.auth-modal-dialog{
+  position:relative; width:100%; max-width:420px; margin:auto; outline:none; flex:none;
+}
+.auth-modal-dialog .auth-card{ padding:38px 32px 32px; }
+.auth-modal-close{
+  position:absolute; top:-14px; right:-14px; width:32px; height:32px; border-radius:50%;
+  background:var(--panel); border:1px solid var(--border); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; padding:0;
+  box-shadow:var(--shadow-md); transition:background var(--dur-f), color var(--dur-f), border-color var(--dur-f);
+}
+.auth-modal-close:hover{ color:var(--accent); border-color:var(--accent); }
+@media (max-width:480px){
+  .auth-modal-backdrop{ padding:0; align-items:flex-end; }
+  .auth-modal-dialog{ max-width:100%; }
+  .auth-modal-dialog .auth-card{ border-radius:var(--r-xl) var(--r-xl) 0 0; }
+  .auth-modal-close{ top:14px; right:14px; background:var(--panel-2); }
+}
+
+/* ---- Register page (standalone route, same look as the Sign In dialog) ---- */
+.auth-page-backdrop{
+  min-height:100vh; min-height:100dvh; width:100%; display:flex; align-items:center; justify-content:center;
+  padding:24px; position:relative;
+  background:
+    radial-gradient(600px 400px at 15% 10%, var(--accent-soft), transparent 60%),
+    radial-gradient(500px 380px at 90% 85%, rgba(255,180,84,.10), transparent 55%),
+    linear-gradient(160deg, var(--bg-2), var(--bg));
+}
+.auth-page-dialog{ position:relative; }
+.auth-page-theme-toggle{
+  position:fixed; top:20px; right:20px; width:36px; height:36px; border-radius:50%;
+  border:1px solid var(--border); background:var(--panel); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:border-color var(--dur-f), color var(--dur-f);
+}
+.auth-page-theme-toggle:hover{ border-color:var(--accent); color:var(--accent); }
+@media (max-width:480px){
+  .auth-page-backdrop{ padding:16px; }
+}
+
+/* ---- Registration email-OTP verification ---- */
+.otp-code-input{
+  letter-spacing:4px; font-size:18px; text-align:center; font-variant-numeric:tabular-nums;
+}
+.otp-links{
+  display:flex; align-items:center; justify-content:space-between; margin-top:16px; flex-wrap:wrap; gap:8px;
+}

@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Comma-separated list of allowed browser origins for direct (non-proxied)
+      # access, e.g. when hitting the API from somewhere other than the bundled
+      # nginx frontend. The frontend itself goes through the nginx reverse proxy
+      # below and never triggers CORS.
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      DATABASE_URL: sqlite:////srv/app/data/laptopsathi.db
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - laptopsathi_data:/srv/app/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  laptopsathi_data:

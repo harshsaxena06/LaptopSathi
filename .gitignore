@@ -1,0 +1,76 @@
+# ============================================================
+# Secrets — NEVER commit these
+# ============================================================
+.env
+.env.local
+.env.*.local
+web/.env
+web/.env.local
+
+# ============================================================
+# Python (backend)
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# ============================================================
+# Node / frontend (web/)
+# ============================================================
+web/node_modules/
+node_modules/
+web/dist/
+web/build/
+web/.vite/
+web/tsconfig.tsbuildinfo
+web/tsconfig.node.tsbuildinfo
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Generated / derived data — keep data/raw (seed dataset, baked
+# into the Docker image), ignore everything the app generates
+# ============================================================
+data/laptopsathi.db
+data/*.db
+data/processed/
+data/embeddings/
+data/kb_versions/
+
+# ============================================================
+# IDE / editor
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ============================================================
+# OS cruft
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+web/vite.config.js
+web/vite.config.d.ts
