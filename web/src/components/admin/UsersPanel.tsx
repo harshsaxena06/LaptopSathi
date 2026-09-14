@@ -92,9 +92,15 @@ export function UsersPanel() {
                       )}
                     </td>
                     <td>
-                      <span style={{ color: u.is_active ? 'var(--green)' : 'var(--red)', fontWeight: 600, fontSize: 12 }}>
-                        {u.is_active ? 'Active' : 'Deactivated'}
-                      </span>
+                      {!u.is_verified ? (
+                        <span style={{ color: 'var(--amber)', fontWeight: 600, fontSize: 12 }}>
+                          Pending verification
+                        </span>
+                      ) : (
+                        <span style={{ color: u.is_active ? 'var(--green)' : 'var(--red)', fontWeight: 600, fontSize: 12 }}>
+                          {u.is_active ? 'Active' : 'Deactivated'}
+                        </span>
+                      )}
                     </td>
                     <td>{u.is_verified ? 'Yes' : 'No'}</td>
                     <td style={{ color: 'var(--text-2)', whiteSpace: 'nowrap' }}>

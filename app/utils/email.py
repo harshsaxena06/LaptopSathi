@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import smtplib
+import time
 from email.message import EmailMessage
 from email.utils import make_msgid
 
@@ -27,6 +28,13 @@ from app.config import settings
 from app.utils.exceptions import EmailDeliveryError
 
 logger = logging.getLogger("laptopsathi.email")
+
+# Transient network hiccups (common on shared free-tier hosting egress —
+# e.g. a momentary "Network is unreachable") are usually gone a couple of
+# seconds later. Retrying a couple of times before giving up turns an
+# intermittent blip into a successful send instead of a failed registration.
+_SEND_MAX_ATTEMPTS = 3
+_SEND_RETRY_DELAY_SECONDS = 2
 
 
 def send_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> None:
@@ -54,21 +62,38 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str | Non
         message.add_alternative(html_body, subtype="html")
 
     try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS) as smtp:
-            if settings.SMTP_USE_TLS:
-                smtp.starttls()
-            if settings.SMTP_USERNAME:
-                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            smtp.send_message(message)
+        _send_with_retry(message, to_email)
     except (smtplib.SMTPException, OSError, TimeoutError) as exc:
         # Never let the raw exception (which can embed SMTP server responses)
         # bubble up to the client; log it server-side and return a generic message.
-        logger.error("SMTP send to %s failed: %s", to_email, exc)
+        logger.error("SMTP send to %s failed after %d attempt(s): %s", to_email, _SEND_MAX_ATTEMPTS, exc)
         raise EmailDeliveryError(
             "We couldn't send that email right now. Please try again in a moment."
         ) from exc
 
     logger.info("Email sent -> to=%s subject=%r message_id=%s", to_email, subject, message["Message-ID"])
+
+
+def _send_with_retry(message: EmailMessage, to_email: str) -> None:
+    last_error: Exception | None = None
+    for attempt in range(1, _SEND_MAX_ATTEMPTS + 1):
+        try:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS) as smtp:
+                if settings.SMTP_USE_TLS:
+                    smtp.starttls()
+                if settings.SMTP_USERNAME:
+                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                smtp.send_message(message)
+            return
+        except (smtplib.SMTPException, OSError, TimeoutError) as exc:
+            last_error = exc
+            if attempt < _SEND_MAX_ATTEMPTS:
+                logger.warning(
+                    "SMTP send to %s failed on attempt %d/%d (%s) — retrying in %ds",
+                    to_email, attempt, _SEND_MAX_ATTEMPTS, exc, _SEND_RETRY_DELAY_SECONDS,
+                )
+                time.sleep(_SEND_RETRY_DELAY_SECONDS)
+    raise last_error
 
 
 # ---------------------------------------------------------------------------
