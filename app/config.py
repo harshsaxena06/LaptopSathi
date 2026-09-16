@@ -87,27 +87,35 @@ class Settings(BaseSettings):
     # Where the SPA lives, used only to build placeholder email links in logs
     FRONTEND_BASE_URL: str = "http://localhost:5173"
 
-    # ---- Outgoing email (SMTP) ----
-    # If SMTP_HOST is empty (the default), no real email is sent — the app
-    # falls back to logging the message instead, which is fine for local
+    # ---- Outgoing email (Brevo HTTPS API) ----
+    # If BREVO_API_KEY is empty (the default), no real email is sent — the
+    # app falls back to logging the message instead, which is fine for local
     # development but means registration OTPs / reset links never leave the
-    # server. Set these to send real email via any SMTP provider (Gmail,
-    # SendGrid, Mailgun, Amazon SES, Postmark, your own mail server, etc.):
-    #   SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_USE_TLS
-    # See .env.example for provider-specific notes.
-    SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_USE_TLS: bool = True  # STARTTLS on the given port (587 is standard)
-    SMTP_FROM_EMAIL: str = "no-reply@laptopsathi.ai"
-    SMTP_FROM_NAME: str = "LaptopSathi AI"
-    # Fail fast instead of hanging if the SMTP server is unreachable.
-    SMTP_TIMEOUT_SECONDS: int = 10
+    # server. Set BREVO_API_KEY to send real email over HTTPS via Brevo
+    # (https://brevo.com — free tier: 300 emails/day).
+    #
+    # NOTE: this used to be plain SMTP, then Resend. Many free-tier hosts
+    # (Render's free web services included) block outbound traffic on SMTP
+    # ports 25/465/587 entirely, so SMTP sends would time out or fail
+    # intermittently there no matter how correct the credentials were —
+    # Brevo's API is plain HTTPS (port 443), which free-tier egress
+    # firewalls don't block. Brevo specifically (over Resend/SendGrid/etc.)
+    # because it verifies a single sender *address* by email-link click —
+    # no domain purchase or DNS records required, which matters if
+    # EMAIL_FROM_EMAIL is a plain Gmail address rather than a domain you
+    # own. See .env.example for setup notes.
+    BREVO_API_KEY: str = ""
+    # Must exactly match a Gmail (or other) address you've verified as a
+    # sender in Brevo's dashboard — Brevo rejects sends from unverified
+    # senders. Set the real value via env var; see .env.example.
+    EMAIL_FROM_EMAIL: str = ""
+    EMAIL_FROM_NAME: str = "LaptopSathi AI"
+    # Fail fast instead of hanging if the Brevo API is unreachable.
+    BREVO_TIMEOUT_SECONDS: int = 10
 
     @property
     def email_delivery_enabled(self) -> bool:
-        return bool(self.SMTP_HOST)
+        return bool(self.BREVO_API_KEY)
 
     model_config = SettingsConfigDict(env_file=".env", arbitrary_types_allowed=True, extra="ignore")
 

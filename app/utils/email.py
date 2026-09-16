@@ -1,95 +1,147 @@
 """
-Outgoing email via SMTP — works with any provider (Gmail, SendGrid,
-Mailgun, Amazon SES, Postmark, your own mail server, ...) since they all
-speak standard SMTP. No provider-specific SDK, so there's nothing to swap
-out if you change providers later — just the .env values.
+Outgoing email via the Brevo HTTPS API (https://brevo.com, formerly Sendinblue).
 
-If SMTP_HOST isn't configured (settings.email_delivery_enabled is False),
-send_email() logs the message instead of sending it. This is what keeps
-local development working without real credentials — see the
+If BREVO_API_KEY isn't configured (settings.email_delivery_enabled is
+False), send_email() logs the message instead of sending it. This is what
+keeps local development working without real credentials — see the
 EMAIL PLACEHOLDER log lines — but it also means no OTP or reset link ever
-reaches a real inbox until SMTP_HOST etc. are set. See .env.example.
+reaches a real inbox until BREVO_API_KEY is set. See .env.example.
+
+WHY HTTPS INSTEAD OF SMTP: many free-tier hosts (Render's free web
+services included) block outbound traffic on SMTP ports 25/465/587
+entirely, so a perfectly-configured SMTP client would still fail there —
+sometimes with an immediate "Network is unreachable", sometimes just
+hanging until it times out. Brevo's API is a normal HTTPS POST (port
+443), which that kind of egress firewall doesn't touch, since blocking 443
+would break the app's own ability to reach its database/APIs too.
+
+WHY BREVO SPECIFICALLY: most transactional-email providers (Resend,
+SendGrid, Mailgun, Postmark, SES) require you to own and DNS-verify a
+domain before they'll send to arbitrary recipients. Brevo also supports
+"Single Sender Verification" — click a link emailed to a plain address
+(a Gmail address works fine) and that address alone is authorized as a
+From address, no domain required. That's the fit when EMAIL_FROM_EMAIL
+is a Gmail address rather than something you own the DNS for.
 
 SECURITY: never log the rendered HTML/text body in production (it may
 contain an OTP or reset token) — only the subject/recipient/message-id are
-logged. In dev-mode (no SMTP configured), the body IS logged, since that's
-the only way to see the code locally; that block is skipped once SMTP_HOST
-is set.
+logged. In dev-mode (no Brevo key configured), the body IS logged, since
+that's the only way to see the code locally; that block is skipped once
+BREVO_API_KEY is set.
 """
 from __future__ import annotations
 
+import json
 import logging
-import smtplib
 import time
-from email.message import EmailMessage
-from email.utils import make_msgid
+import urllib.error
+import urllib.request
 
 from app.config import settings
 from app.utils.exceptions import EmailDeliveryError
 
 logger = logging.getLogger("laptopsathi.email")
 
-# Transient network hiccups (common on shared free-tier hosting egress —
-# e.g. a momentary "Network is unreachable") are usually gone a couple of
-# seconds later. Retrying a couple of times before giving up turns an
-# intermittent blip into a successful send instead of a failed registration.
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+# Transient network hiccups are usually gone a couple of seconds later.
+# Retrying a couple of times before giving up turns an intermittent blip
+# into a successful send instead of a failed registration. This only
+# applies to network-level failures (timeouts, DNS, connection resets) —
+# an error response *from* Brevo (unverified sender, bad payload, etc.)
+# means the same request would just fail the same way again, so those are
+# not retried.
 _SEND_MAX_ATTEMPTS = 3
 _SEND_RETRY_DELAY_SECONDS = 2
 
 
 def send_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> None:
-    """Sends an email, or logs it if SMTP isn't configured (dev mode).
+    """Sends an email, or logs it if Brevo isn't configured (dev mode).
 
-    Raises EmailDeliveryError (502) if SMTP *is* configured but the send
+    Raises EmailDeliveryError (502) if Brevo *is* configured but the send
     fails — a config/network/provider problem, not the caller's fault, so
     callers should surface a "try again" message rather than treating it
     like a validation error.
     """
     if not settings.email_delivery_enabled:
         logger.info(
-            "EMAIL PLACEHOLDER (SMTP not configured — see .env SMTP_HOST) -> to=%s subject=%r body=%r",
+            "EMAIL PLACEHOLDER (Brevo not configured — see .env BREVO_API_KEY) -> to=%s subject=%r body=%r",
             to_email, subject, text_body,
         )
         return
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-    message["To"] = to_email
-    message["Message-ID"] = make_msgid(domain=settings.SMTP_FROM_EMAIL.split("@")[-1] or None)
-    message.set_content(text_body)
+    payload: dict = {
+        "sender": {"name": settings.EMAIL_FROM_NAME, "email": settings.EMAIL_FROM_EMAIL},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": text_body,
+    }
     if html_body:
-        message.add_alternative(html_body, subtype="html")
+        payload["htmlContent"] = html_body
+
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        BREVO_API_URL,
+        data=body,
+        method="POST",
+        headers={
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
 
     try:
-        _send_with_retry(message, to_email)
-    except (smtplib.SMTPException, OSError, TimeoutError) as exc:
-        # Never let the raw exception (which can embed SMTP server responses)
-        # bubble up to the client; log it server-side and return a generic message.
-        logger.error("SMTP send to %s failed after %d attempt(s): %s", to_email, _SEND_MAX_ATTEMPTS, exc)
+        message_id = _send_with_retry(request, to_email)
+    except _BrevoApiError as exc:
+        # A response *from* Brevo rejecting the request (unverified sender,
+        # invalid payload, out of credits, etc.) — not a network problem,
+        # so surface Brevo's own explanation server-side.
+        logger.error(
+            "Brevo rejected email to %s (HTTP %s): %s", to_email, exc.status, exc.detail,
+        )
+        raise EmailDeliveryError(
+            "We couldn't send that email right now. Please try again in a moment."
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        # Never let the raw exception bubble up to the client; log it
+        # server-side and return a generic message.
+        logger.error("Brevo send to %s failed after %d attempt(s): %s", to_email, _SEND_MAX_ATTEMPTS, exc)
         raise EmailDeliveryError(
             "We couldn't send that email right now. Please try again in a moment."
         ) from exc
 
-    logger.info("Email sent -> to=%s subject=%r message_id=%s", to_email, subject, message["Message-ID"])
+    logger.info("Email sent -> to=%s subject=%r message_id=%s", to_email, subject, message_id)
 
 
-def _send_with_retry(message: EmailMessage, to_email: str) -> None:
+class _BrevoApiError(Exception):
+    """Brevo returned a non-2xx response — a rejection, not a network failure."""
+
+    def __init__(self, status: int, detail: str):
+        super().__init__(f"Brevo API error {status}: {detail}")
+        self.status = status
+        self.detail = detail
+
+
+def _send_with_retry(request: urllib.request.Request, to_email: str) -> str | None:
+    """Returns Brevo's messageId on success. Retries network-level failures
+    only; an HTTP error response from Brevo raises _BrevoApiError
+    immediately without retrying, since resending the same payload would
+    just get the same rejection again."""
     last_error: Exception | None = None
     for attempt in range(1, _SEND_MAX_ATTEMPTS + 1):
         try:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS) as smtp:
-                if settings.SMTP_USE_TLS:
-                    smtp.starttls()
-                if settings.SMTP_USERNAME:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(message)
-            return
-        except (smtplib.SMTPException, OSError, TimeoutError) as exc:
+            with urllib.request.urlopen(request, timeout=settings.BREVO_TIMEOUT_SECONDS) as response:
+                data = json.loads(response.read().decode("utf-8") or "{}")
+                return data.get("messageId")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise _BrevoApiError(exc.code, detail) from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
             last_error = exc
             if attempt < _SEND_MAX_ATTEMPTS:
                 logger.warning(
-                    "SMTP send to %s failed on attempt %d/%d (%s) — retrying in %ds",
+                    "Brevo send to %s failed on attempt %d/%d (%s) — retrying in %ds",
                     to_email, attempt, _SEND_MAX_ATTEMPTS, exc, _SEND_RETRY_DELAY_SECONDS,
                 )
                 time.sleep(_SEND_RETRY_DELAY_SECONDS)

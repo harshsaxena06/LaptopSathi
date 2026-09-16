@@ -134,14 +134,14 @@ def on_startup():
             )
         if not settings.email_delivery_enabled:
             logger.error(
-                "ENV=%s but SMTP_HOST is not set — registration OTPs and password-reset "
+                "ENV=%s but BREVO_API_KEY is not set — registration OTPs and password-reset "
                 "links will NOT be emailed to users, only logged server-side. Set "
-                "SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD (see .env.example) before "
-                "exposing this server publicly.", settings.ENV,
+                "BREVO_API_KEY (see .env.example) before exposing this server publicly.",
+                settings.ENV,
             )
     elif not settings.email_delivery_enabled:
         logger.info(
-            "SMTP_HOST is not set — registration OTPs and password-reset links will be "
+            "BREVO_API_KEY is not set — registration OTPs and password-reset links will be "
             "logged instead of emailed (fine for local development). See .env.example."
         )
 
